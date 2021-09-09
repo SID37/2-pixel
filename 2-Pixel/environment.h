@@ -14,6 +14,8 @@ public:
 	{
 		sf::Color color;
 		float reliability;
+
+		static Pixel Random(const Pixel& from, const Pixel& to);
 	};
 
 private:

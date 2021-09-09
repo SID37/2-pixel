@@ -4,6 +4,8 @@
 void World::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
 	target.draw(environment, states);
+	for (const Player* p: players)
+		target.draw(*p, states);
 }
 
 static int rand(int from, int to)
@@ -39,13 +41,9 @@ void World::drawLine(sf::Color colorFrom, sf::Color colorTo, float reliability, 
 	
 	for (int i = 0; i < width; ++i)
 		for (int j = buf[buf.size() - i - 1]; j < environment.Height(); ++j)
-			environment[i][j] = Environment::Pixel{
-				sf::Color{
-					(sf::Uint8)rand(colorFrom.r, colorTo.r),
-					(sf::Uint8)rand(colorFrom.g, colorTo.g),
-					(sf::Uint8)rand(colorFrom.b, colorTo.b),
-				}, reliability
-			};
+			environment[i][j] = Environment::Pixel::Random(
+				{ colorFrom, reliability },
+				{ colorTo, reliability });
 }
 
 World::World(int width, int height):
@@ -54,4 +52,24 @@ World::World(int width, int height):
 	drawLine({ 0, 100, 0 }, { 0, 150, 0 }, 1, height / 2, height / 10);
 	drawLine({ 100, 50, 0 }, { 120, 70, 20 }, 2, height / 2 + height / 5, height / 10);
 	drawLine({ 100, 100, 100 }, { 120, 120, 120 }, 3, height / 2 + height / 3, height / 10);
+}
+
+void World::tick(float dt)
+{
+	if (dt > 0.1)
+		dt = 0.1;
+	for (Player* p : players)
+		p->tick(dt);
+}
+
+Player& World::addPlayer()
+{
+	players.push_back(new Player(*this));
+	return *players.back();
+}
+
+World::~World()
+{
+	for (Player* p : players)
+		delete p;
 }
