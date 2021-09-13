@@ -141,13 +141,16 @@
   <ItemGroup>
     <ClCompile Include="canvas.cpp" />
     <ClCompile Include="environment.cpp" />
+    <ClCompile Include="fireball.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="player.cpp" />
     <ClCompile Include="world.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="canvas.h" />
+    <ClInclude Include="entity.h" />
     <ClInclude Include="environment.h" />
+    <ClInclude Include="feireball.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="world.h" />
   </ItemGroup>

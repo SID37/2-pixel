@@ -4,8 +4,8 @@
 void World::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
 	target.draw(environment, states);
-	for (const Player* p: players)
-		target.draw(*p, states);
+	for (const Entity* e: entityes)
+		target.draw(*e, states);
 }
 
 static int rand(int from, int to)
@@ -58,18 +58,35 @@ void World::tick(float dt)
 {
 	if (dt > 0.1)
 		dt = 0.1;
-	for (Player* p : players)
-		p->tick(dt);
+	for (int i = 0; i < entityes.size(); ++i)
+		entityes[i]->tick(dt);
+}
+
+
+Fireball& World::addFireball(float x, float y, float dx, float dy)
+{
+	Fireball* p = new Fireball(*this, x, y, dx, dy, Fireball::FIREBALL);
+	entityes.push_back(p);
+	return *p;
+}
+
+Fireball& World::addFlamethrower(float x, float y, float dx, float dy)
+{
+	Fireball* p = new Fireball(*this, x, y, dx, dy, Fireball::FLAMETHROWER);
+	entityes.push_back(p);
+	return *p;
 }
 
 Player& World::addPlayer()
 {
-	players.push_back(new Player(*this));
-	return *players.back();
+	Player* p = new Player(*this);
+	entityes.push_back(p);
+	players.push_back(p);
+	return *p;
 }
 
 World::~World()
 {
-	for (Player* p : players)
+	for (Entity* p : entityes)
 		delete p;
 }

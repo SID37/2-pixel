@@ -16,27 +16,32 @@ void Player::draw(sf::RenderTarget& target, sf::RenderStates states) const
 }
 
 
+void Player::respawn()
+{
+	move(rand() % (world.environment.Width() - canvas.Width()), 0);
+	state.hp = canvas.Width() * canvas.Height() / 2;
+	for (int i = 0; i < canvas.Width(); ++i)
+		for (int j = 0; j < canvas.Height(); ++j)
+			canvas.SetPixel(i, j,
+				Environment::Pixel::Random(
+					{ { 15, 20, 150 }, 0 }, { { 20, 30, 160 }, 0 }).color);
+}
+
+
 Player::Player(World& world) :
 	world(world),
 	canvas(10, 20),
 	speed(0),
 	pointer(11, 11)
 {
-	move(0, 0);
 	for (int i = 0; i < pointer.Width(); ++i)
 		for (int j = 0; j < pointer.Height(); ++j)
 			pointer.SetPixel(i, j, { 0, 0, 0, 0 });
-
 	for (int i = 0; i < pointer.Width(); ++i)
-		pointer.SetPixel(i, pointer.Height() / 2, { 0, 200, 0});
+		pointer.SetPixel(i, pointer.Height() / 2, { 0, 200, 0 });
 	for (int i = 0; i < pointer.Height(); ++i)
-		pointer.SetPixel(pointer.Width() / 2, i, { 0, 200, 0});
-
-	for (int i = 0; i < canvas.Width(); ++i)
-		for (int j = 0; j < canvas.Height(); ++j)
-			canvas.SetPixel(i, j, 
-				Environment::Pixel::Random(
-					{ { 15, 20, 150 }, 0 }, { { 20, 30, 160 }, 0 }).color);
+		pointer.SetPixel(pointer.Width() / 2, i, { 0, 200, 0 });
+	respawn();
 }
 
 bool Player::canMove(float x, float y) const
@@ -109,24 +114,43 @@ void Player::action(sf::Keyboard::Key key, bool down)
 		}
 		break;
 	case sf::Keyboard::Num1:
-		state.action = ACTION_SET;
+		state.action = ACTION_FIREBALL;
 		break;
 	case sf::Keyboard::Num2:
-		state.action = ACTION_REMOVE;
+		state.action = ACTION_FLAMETHROWER;
+		break;
+	case sf::Keyboard::LShift:
+		state.shift = down;
 		break;
 	}
 	state.direction = std::min(state.direction, 1);
 	state.direction = std::max(state.direction, -1);
 }
 
+void Player::action(sf::Mouse::Button key, bool down)
+{
+	if (key == sf::Mouse::Left)
+		state.l_activate = down;
+	if (key == sf::Mouse::Right)
+		state.r_activate = down;
+}
+
 void Player::action(float dt)
 {
-	if (!state.activate)
-		return;
-	switch (state.action)
+	state.fireball_time -= dt;
+	state.flamethrower_time -= dt;
+	if (state.r_activate)
 	{
-	case ACTION_SET: actionSet(dt); break;
-	case ACTION_REMOVE: actionRemove(dt); break;
+		if (state.shift) actionRemove(dt);
+		else actionSet(dt);
+	}
+	if (state.l_activate)
+	{
+		switch (state.action)
+		{
+		case ACTION_FIREBALL: actionFireball(dt); break;
+		case ACTION_FLAMETHROWER: actionFlamethrower(dt); break;
+		}
 	}
 }
 
@@ -141,10 +165,10 @@ void Player::actionSet(float dt)
 		return;
 
 	int delta = 5;
-	int x_from = std::max(0, pointer.X() - delta);
-	int x_to = std::min(world.environment.Width(), pointer.X() + pointer.Width() + delta);
-	int y_from = std::max(0, pointer.Y() - delta);
-	int y_to = std::min(world.environment.Height(), pointer.Y() + pointer.Height() + delta);
+	int x_from = std::max(0, state.mouse_x - delta);
+	int x_to = std::min(world.environment.Width(), state.mouse_x + pointer.Width() + delta);
+	int y_from = std::max(0, state.mouse_y - delta);
+	int y_to = std::min(world.environment.Height(), state.mouse_y + pointer.Height() + delta);
 	int x_m = (x_from + x_to) / 2;
 	int y_m = (y_from + y_to) / 2;
 
@@ -170,15 +194,56 @@ void Player::actionRemove(float dt)
 		for (int j = y_from; j < y_to; ++j)
 			if (Sqr(i - x_m) + Sqr(j - y_m) <= Sqr(pointer.Width() / 2 + delta))
 				if (world.environment[i][j].reliability > 1)
-					world.environment[i][j].reliability -= 0.3; 
+					world.environment[i][j].reliability -= 0.3;
 				else
 					world.environment[i][j] = { {0, 0, 0}, 0 };
 }
 
-void Player::action(sf::Mouse::Button key, bool down)
+void Player::actionFireball(float dt)
 {
-	if (key == sf::Mouse::Left)
-		state.activate = down;
+	if (state.fireball_time > 0)
+	{
+		return;
+	}
+
+	float center_x = (canvas.X() + canvas.Width() / 2);
+	float center_y = (canvas.Y() + canvas.Height() / 2);
+
+	float dx = state.mouse_x - center_x;
+	float dy = state.mouse_y - center_y;
+	float len = std::sqrt(dx * dx + dy * dy);
+	float speed = 300;
+
+	world.addFireball(
+		center_x + 30 * dx / len,
+		center_y + 30 * dy / len,
+		speed * dx / len,
+		speed * dy / len);
+	state.fireball_time = 0.2;
+}
+
+void Player::actionFlamethrower(float dt)
+{
+	if (state.flamethrower_time > 0)
+	{
+		state.flamethrower_time -= dt;
+		return;
+	}
+
+	float center_x = (canvas.X() + canvas.Width() / 2);
+	float center_y = (canvas.Y() + canvas.Height() / 2);
+
+	float dx = state.mouse_x - center_x;
+	float dy = state.mouse_y - center_y;
+	float len = std::sqrt(dx * dx + dy * dy);
+	float speed = 100;
+
+	world.addFlamethrower(
+		center_x + 30 * dx / len,
+		center_y + 30 * dy / len,
+		speed * dx / len,
+		speed * dy / len);
+	state.flamethrower_time = 0;
 }
 
 void Player::relocatePointer()
@@ -206,6 +271,8 @@ void Player::mouseMove(int x, int y)
 
 void Player::tick(float dt)
 {
+	if (state.hp <= 0)
+		respawn();
 	relocatePointer();
 	action(dt);
 
